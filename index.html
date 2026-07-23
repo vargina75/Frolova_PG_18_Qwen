@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Музыкальный диктант</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Comic Sans MS", Arial, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+    color: #333;
+  }
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+  }
+  h1 { text-align: center; color: #667eea; margin-bottom: 10px; font-size: 32px; }
+  .subtitle { text-align: center; color: #666; margin-bottom: 25px; font-size: 18px; }
+  
+  .controls {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin: 25px 0;
+  }
+  .btn {
+    padding: 15px 30px;
+    border: none;
+    border-radius: 25px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    color: white;
+    transition: all 0.3s;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  }
+  .btn:hover { transform: translateY(-3px); box-shadow: 0 6px 15px rgba(0,0,0,0.3); }
+  .btn:active { transform: translateY(-1px); }
+  .btn-full { background: linear-gradient(135deg, #667eea, #764ba2); }
+  .btn-full.paused { background: linear-gradient(135deg, #f39c12, #e67e22); }
+  .btn-check { background: linear-gradient(135deg, #2ecc71, #27ae60); }
+  .btn-reset { background: linear-gradient(135deg, #95a5a6, #7f8c8d); }
+  
+  .zone {
+    background: #f8f9fa;
+    border: 3px dashed #ddd;
+    border-radius: 15px;
+    padding: 25px;
+    margin: 25px 0;
+    min-height: 140px;
+  }
+  .zone-title {
+    font-size: 22px;
+    font-weight: bold;
+    margin-bottom: 20px;
+    text-align: center;
+    color: #667eea;
+  }
+  .slots {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .slot {
+    width: 120px;
+    height: 120px;
+    border: 3px dashed #ffd93d;
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,217,61,0.1);
+    transition: all 0.3s;
+    pointer-events: auto; /* Всегда активны */
+  }
+  .slot.drag-over { 
+    background: rgba(255,217,61,0.4); 
+    border-style: solid;
+    transform: scale(1.05);
+  }
+  
+  .block {
+    width: 120px;
+    height: 120px;
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    user-select: none;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.25);
+    transition: transform 0.2s, box-shadow 0.2s;
+    font-size: 60px;
+    position: relative;
+    pointer-events: auto; /* Всегда активны */
+  }
+  .block:hover { transform: scale(1.08); box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
+  .block:active { cursor: grabbing; transform: scale(1.05); }
+  .block.playing { 
+    animation: pulse 0.5s;
+    box-shadow: 0 0 25px rgba(255,255,255,0.9);
+  }
+  .block.dragging { opacity: 0.5; }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+  }
+  
+  /* Цвета для котиков - контрастные */
+  .block.cat1 { background: linear-gradient(135deg, #ff9a9e, #fecfef); }
+  .block.cat2 { background: linear-gradient(135deg, #a1c4fd, #c2e9fb); }
+  .block.cat3 { background: linear-gradient(135deg, #84fab0, #8fd3f4); }
+  .block.cat4 { background: linear-gradient(135deg, #fccb90, #d57eeb); }
+  
+  .feedback {
+    text-align: center;
+    font-size: 24px;
+    font-weight: bold;
+    padding: 20px;
+    margin: 25px 0;
+    border-radius: 15px;
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .feedback.success { 
+    background: linear-gradient(135deg, #d4edda, #c3e6cb); 
+    color: #155724;
+    border: 3px solid #28a745;
+  }
+  .feedback.error { 
+    background: linear-gradient(135deg, #f8d7da, #f5c6cb); 
+    color: #721c24;
+    border: 3px solid #dc3545;
+  }
+  .feedback.info {
+    background: rgba(102, 126, 234, 0.1);
+    color: #667eea;
+    border: 2px solid #667eea;
+  }
+  
+  .hint {
+    text-align: center;
+    color: #666;
+    font-size: 16px;
+    margin-top: 10px;
+    font-style: italic;
+  }
+  
+  .playing-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    background: #2ecc71;
+    border-radius: 50%;
+    margin-left: 10px;
+    animation: blink 1s infinite;
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>🎵 Музыкальный диктант</h1>
+  <div class="subtitle">Прослушай мелодию и собери её из фрагментов!</div>
+  
+  <div class="controls">
+    <button class="btn btn-full" id="btn-full" onclick="togglePlayFull()">🎵 Прослушать целиком</button>
+    <button class="btn btn-check" id="btn-check" onclick="checkAnswer()" style="display:none;">✅ Проверить</button>
+    <button class="btn btn-reset" onclick="reset()">🔄 Сбросить</button>
+  </div>
+  
+  <div class="feedback" id="feedback">Нажмите "Прослушать целиком", затем слушайте фрагменты и собирайте пазл</div>
+  
+  <div class="zone">
+    <div class="zone-title"> Сюда перетащи блоки в правильном порядке</div>
+    <div class="slots" id="target-zone">
+      <div class="slot" data-idx="0" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)"></div>
+      <div class="slot" data-idx="1" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)"></div>
+      <div class="slot" data-idx="2" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)"></div>
+      <div class="slot" data-idx="3" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)"></div>
+    </div>
+  </div>
+  
+  <div class="zone">
+    <div class="zone-title">🎵 Фрагменты мелодии (нажми, чтобы прослушать)</div>
+    <div class="slots" id="source-zone"></div>
+    <div class="hint">💡 Кликай на котиков, чтобы прослушать фрагменты. Затем перетащи их в верхнюю зону</div>
+  </div>
+</div>
+
+<script>
+const CATS = ['🐱', '😺', '🐈', '😸'];
+
+const BLOCKS = [
+  {id:'b1', cat:0, src:'audio/dictation18_part1.mp3'},
+  {id:'b2', cat:1, src:'audio/dictation18_part2.mp3'},
+  {id:'b3', cat:2, src:'audio/dictation18_part3.mp3'},
+  {id:'b4', cat:3, src:'audio/dictation18_part4.mp3'}
+];
+const CORRECT = ['b1','b2','b3','b4'];
+let fullAudio = null;
+let fragmentAudio = null;
+let isFullPlaying = false;
+let isFragmentPlaying = false;
+
+function init() {
+  const zone = document.getElementById('source-zone');
+  zone.innerHTML = '';
+  const shuffled = [...BLOCKS].sort(()=>Math.random()-0.5);
+  shuffled.forEach(b => {
+    const el = createBlock(b);
+    zone.appendChild(el);
+  });
+}
+
+function createBlock(b) {
+  const el = document.createElement('div');
+  el.className = 'block cat' + (b.cat + 1);
+  el.id = b.id;
+  el.textContent = CATS[b.cat];
+  el.title = 'Нажми, чтобы прослушать фрагмент';
+  el.draggable = true;
+  
+  let isDragging = false;
+  
+  el.addEventListener('dragstart', function(e) {
+    isDragging = true;
+    this.classList.add('dragging');
+    e.dataTransfer.setData('text/plain', JSON.stringify({id: b.id, src: b.src}));
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  
+  el.addEventListener('dragend', function() {
+    isDragging = false;
+    this.classList.remove('dragging');
+  });
+  
+  el.addEventListener('click', function(e) {
+    if (!isDragging) {
+      playFragment(b.src, el);
+    }
+  });
+  
+  return el;
+}
+
+function allowDrop(e) {
+  e.preventDefault();
+  const slot = e.target.closest('.slot');
+  if (slot) {
+    e.dataTransfer.dropEffect = 'move';
+    slot.classList.add('drag-over');
+  }
+}
+
+function dragLeave(e) {
+  const slot = e.target.closest('.slot');
+  if (slot) {
+    slot.classList.remove('drag-over');
+  }
+}
+
+function drop(e) {
+  e.preventDefault();
+  const slot = e.target.closest('.slot');
+  if (!slot) return;
+  
+  slot.classList.remove('drag-over');
+  
+  try {
+    const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+    const block = document.getElementById(data.id);
+    
+    if (!block) return;
+    
+    // Убираем блок из source-zone
+    if (block.parentElement.id === 'source-zone') {
+      block.parentElement.removeChild(block);
+    }
+    
+    // Если в слоте уже есть блок, возвращаем его обратно в source
+    if (slot.children.length > 0) {
+      const existingBlock = slot.children[0];
+      document.getElementById('source-zone').appendChild(existingBlock);
+    }
+    
+    slot.appendChild(block);
+    
+    // Показываем кнопку "Проверить" когда все слоты заполнены
+    checkIfComplete();
+    
+  } catch(err) {
+    console.error('Ошибка при перетаскивании:', err);
+  }
+}
+
+function playFragment(src, el) {
+  // Останавливаем целую мелодию если играет
+  if (isFullPlaying && fullAudio) {
+    fullAudio.pause();
+  }
+  
+  // Если уже играет этот же фрагмент - останавливаем
+  if (isFragmentPlaying && fragmentAudio) {
+    fragmentAudio.pause();
+    fragmentAudio = null;
+    isFragmentPlaying = false;
+    el.classList.remove('playing');
+    return;
+  }
+  
+  // Останавливаем другие фрагменты
+  document.querySelectorAll('.block').forEach(b => b.classList.remove('playing'));
+  
+  fragmentAudio = new Audio(src);
+  fragmentAudio.volume = 0.8;
+  isFragmentPlaying = true;
+  
+  el.classList.add('playing');
+  
+  fragmentAudio.onended = () => {
+    el.classList.remove('playing');
+    isFragmentPlaying = false;
+    fragmentAudio = null;
+  };
+  
+  fragmentAudio.play().catch(e => {
+    console.error('Ошибка воспроизведения:', e);
+    el.classList.remove('playing');
+    isFragmentPlaying = false;
+  });
+}
+
+function togglePlayFull() {
+  const btn = document.getElementById('btn-full');
+  
+  // Если на паузе - продолжаем с того же места
+  if (isFullPlaying && fullAudio && fullAudio.paused) {
+    fullAudio.play();
+    btn.classList.add('paused');
+    btn.innerHTML = '⏸️ Пауза <span class="playing-indicator"></span>';
+    document.getElementById('feedback').textContent = '▶️ Продолжаем слушать...';
+    document.getElementById('feedback').className = 'feedback info';
+    return;
+  }
+  
+  // Если играет - ставим на паузу (сохраняем позицию!)
+  if (isFullPlaying && fullAudio) {
+    fullAudio.pause();
+    isFullPlaying = false;
+    btn.classList.remove('paused');
+    btn.innerHTML = '▶️ Продолжить';
+    document.getElementById('feedback').textContent = '⏸️ На паузе. Нажмите "Продолжить" или "Сбросить"';
+    document.getElementById('feedback').className = 'feedback info';
+    return;
+  }
+  
+  // Начинаем воспроизведение с начала
+  isFullPlaying = true;
+  
+  // Останавливаем фрагменты если играют
+  if (fragmentAudio) {
+    fragmentAudio.pause();
+    fragmentAudio = null;
+  }
+  isFragmentPlaying = false;
+  document.querySelectorAll('.block').forEach(b => b.classList.remove('playing'));
+  
+  fullAudio = new Audio('audio/dictation18.mp3');
+  fullAudio.volume = 0.8;
+  
+  btn.classList.add('paused');
+  btn.innerHTML = '⏸️ Пауза <span class="playing-indicator"></span>';
+  
+  document.getElementById('feedback').textContent = '🎵 Слушаем всю мелодию...';
+  document.getElementById('feedback').className = 'feedback';
+  
+  fullAudio.onended = () => {
+    isFullPlaying = false;
+    fullAudio = null;
+    btn.classList.remove('paused');
+    btn.innerHTML = ' Прослушать целиком';
+    document.getElementById('feedback').textContent = 'Мелодия прослушана. Теперь соберите пазл!';
+    document.getElementById('feedback').className = 'feedback info';
+  };
+  
+  fullAudio.onerror = () => {
+    isFullPlaying = false;
+    fullAudio = null;
+    btn.classList.remove('paused');
+    btn.innerHTML = '🎵 Прослушать целиком';
+    document.getElementById('feedback').textContent = '⚠️ Файл dictation18.mp3 не найден!';
+    document.getElementById('feedback').className = 'feedback error';
+  };
+  
+  fullAudio.play().catch(e => {
+    isFullPlaying = false;
+    fullAudio = null;
+    btn.classList.remove('paused');
+    btn.innerHTML = ' Прослушать целиком';
+    document.getElementById('feedback').textContent = '⚠️ Кликните по странице, затем попробуйте снова';
+    document.getElementById('feedback').className = 'feedback error';
+  });
+}
+
+function checkIfComplete() {
+  const slots = document.querySelectorAll('#target-zone .slot');
+  let filledCount = 0;
+  
+  slots.forEach(s => {
+    if (s.children.length > 0) filledCount++;
+  });
+  
+  // Показываем кнопку "Проверить" когда все слоты заполнены
+  const checkBtn = document.getElementById('btn-check');
+  if (filledCount === 4) {
+    checkBtn.style.display = 'inline-block';
+    document.getElementById('feedback').textContent = 'Все блоки расставлены! Нажмите "Проверить"';
+    document.getElementById('feedback').className = 'feedback info';
+  } else {
+    checkBtn.style.display = 'none';
+  }
+}
+
+function checkAnswer() {
+  // Останавливаем музыку если играет
+  if (fullAudio) {
+    fullAudio.pause();
+    isFullPlaying = false;
+  }
+  if (fragmentAudio) {
+    fragmentAudio.pause();
+    isFragmentPlaying = false;
+  }
+  
+  const slots = document.querySelectorAll('#target-zone .slot');
+  let order = [];
+  let ok = true;
+  
+  slots.forEach(s => {
+    if (s.children.length) order.push(s.children[0].id);
+    else ok = false;
+  });
+  
+  const fb = document.getElementById('feedback');
+  
+  if (!ok) { 
+    fb.textContent = '️ Заполните все 4 слота!'; 
+    fb.className = 'feedback error'; 
+    return; 
+  }
+  
+  if (JSON.stringify(order) === JSON.stringify(CORRECT)) {
+    fb.textContent = '🎉 БРАВО! Мелодия собрана правильно!';
+    fb.className = 'feedback success';
+    
+    // Проигрываем собранную мелодию по порядку
+    setTimeout(() => {
+      playAssembled();
+    }, 1000);
+  } else {
+    fb.textContent = '❌ Неверный порядок. Попробуйте снова!';
+    fb.className = 'feedback error';
+  }
+}
+
+function playAssembled() {
+  const slots = document.querySelectorAll('#target-zone .slot');
+  let currentIndex = 0;
+  
+  function playNextBlock() {
+    if (currentIndex >= slots.length) {
+      document.getElementById('feedback').textContent = '🎉 Отличная работа! Хотите ещё раз? Нажмите "Проверить"';
+      document.getElementById('feedback').className = 'feedback success';
+      return;
+    }
+    
+    const slot = slots[currentIndex];
+    const block = slot.children[0];
+    const blockData = BLOCKS.find(b => b.id === block.id);
+    
+    if (blockData) {
+      const audioPart = new Audio(blockData.src);
+      audioPart.volume = 0.8;
+      block.classList.add('playing');
+      
+      audioPart.onended = () => {
+        block.classList.remove('playing');
+        currentIndex++;
+        setTimeout(playNextBlock, 300);
+      };
+      
+      audioPart.play();
+    } else {
+      currentIndex++;
+      setTimeout(playNextBlock, 300);
+    }
+  }
+  
+  playNextBlock();
+}
+
+function reset() {
+  // Полностью останавливаем всю музыку
+  if (fullAudio) {
+    fullAudio.pause();
+    fullAudio = null;
+  }
+  if (fragmentAudio) {
+    fragmentAudio.pause();
+    fragmentAudio = null;
+  }
+  isFullPlaying = false;
+  isFragmentPlaying = false;
+  
+  document.querySelectorAll('.block').forEach(b => b.classList.remove('playing'));
+  
+  // Сбрасываем кнопку "Прослушать целиком"
+  const btnFull = document.getElementById('btn-full');
+  btnFull.classList.remove('paused');
+  btnFull.innerHTML = '🎵 Прослушать целиком';
+  
+  // Скрываем кнопку "Проверить"
+  document.getElementById('btn-check').style.display = 'none';
+  
+  // Возвращаем все блоки в source-zone
+  const sourceZone = document.getElementById('source-zone');
+  const targetSlots = document.querySelectorAll('#target-zone .slot');
+  
+  targetSlots.forEach(slot => {
+    while (slot.children.length > 0) {
+      sourceZone.appendChild(slot.children[0]);
+    }
+  });
+  
+  // Перемешиваем блоки
+  const blocks = Array.from(sourceZone.children);
+  const shuffled = blocks.sort(() => Math.random() - 0.5);
+  shuffled.forEach(block => sourceZone.appendChild(block));
+  
+  document.getElementById('feedback').textContent = 'Нажмите "Прослушать целиком", затем слушайте фрагменты и собирайте пазл';
+  document.getElementById('feedback').className = 'feedback';
+}
+
+window.onload = init;
+</script>
+
+</body>
+</html>
